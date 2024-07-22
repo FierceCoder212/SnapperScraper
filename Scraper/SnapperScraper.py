@@ -9,6 +9,7 @@ from Helpers.SqlLiteHelper import SQLiteHelper
 from Models.CatalogModel import Catalog
 from Models.CatalogResponseModel import CatalogResponse
 from Models.ExcelFileModel import ExcelFile
+from Models.ImageModel import ImageModel
 from Models.Part import Part
 from Models.Parts import Parts
 from Models.SectionsModel import Sections
@@ -25,7 +26,7 @@ class SnapperScraper:
         self.sql_helper = SQLiteHelper("SnapperDb.db")
 
     def scrape_data(self):
-        images = []
+        images: list[ImageModel] = []
         for item in self._catalogs:
             try:
                 c_data = self._recursive(aria_id=item.attr.aria, data=item.data)
@@ -35,12 +36,13 @@ class SnapperScraper:
                 images.extend(image)
                 self.creatingExcelFile(catalog_list=c_data, section=item.data)
                 print("DAta saved to file")
+                break
             except Exception as e:
                 print(
                     f"Erro at id: {item.attr.aria} and section is {item.data} while error is {e}"
                 )
             break
-        self.save_json(images, "images.json")
+        self.save_json([image.model_dump() for image in images], "images.json")
 
     def _recursive(self, aria_id: str, data: str = "") -> list[Catalog]:
         c_data: list[Catalog] = []
@@ -55,6 +57,7 @@ class SnapperScraper:
                 new_list = self._recursive(aria_id=item.attr.aria, data=item.data)
                 print(f"Item added {item.data}")
                 c_data.extend(new_list)
+                break
             if open_state.json:
                 sgl_code = self.resolve_sgl_code()
                 parts_list = self.scrape_parts(
@@ -102,6 +105,7 @@ class SnapperScraper:
             part = self.scrape_part(ariq_slug=item.attr.slug, sgl_code=sgl_code)
             if part:
                 parts_list.append(part)
+            break
         return parts_list
 
     def scrape_part(self, ariq_slug: str, sgl_code: str) -> Parts:
@@ -184,10 +188,15 @@ class SnapperScraper:
 
     @staticmethod
     def get_all_images(catalog_list: list[Catalog]):
-        images = []
+        images: list[ImageModel] = []
         for catalog in catalog_list:
             for section in catalog.sections:
-                images.append(section.section_diagram_url)
+                images.append(
+                    ImageModel(
+                        file_name=section.section_diagram,
+                        image_url=section.section_diagram_url,
+                    )
+                )
         return images
 
     @staticmethod
@@ -203,6 +212,7 @@ class SnapperScraper:
                 section=section,
             ).model_dump()
             excel_models.append(model)
+
         df = pd.DataFrame(excel_models)
         df.rename(
             columns={
@@ -215,8 +225,16 @@ class SnapperScraper:
             },
             inplace=True,
         )
-        file_path = "Excel Output.xlsx"
-        df.to_excel(
+
+        file_path = "ModelList.xlsx"
+
+        if os.path.exists(file_path):
+            existing_df = pd.read_excel(file_path)
+            combined_df = pd.concat([existing_df, df], ignore_index=True)
+        else:
+            combined_df = df
+
+        combined_df.to_excel(
             file_path,
             index=False,
             columns=[
@@ -228,4 +246,4 @@ class SnapperScraper:
                 "Section",
             ],
         )
-        print(f"Excel file created at {file_path}")
+        print(f"Excel file updated at {file_path}")
