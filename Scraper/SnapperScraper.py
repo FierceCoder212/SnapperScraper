@@ -62,7 +62,6 @@ class SnapperScraper:
                 new_list = self._recursive(aria_id=item.attr.aria, data=item.data)
                 print(f"Item added {item.data}")
                 c_data.extend(new_list)
-                break
             if open_state.json:
                 sgl_code = self._resolve_sgl_code()
                 parts_list = self._scrape_parts(
@@ -85,7 +84,6 @@ class SnapperScraper:
             part = self._scrape_part(ariq_slug=item.attr.slug, sgl_code=sgl_code)
             if part:
                 parts_list.append(part)
-            break
         return parts_list
 
     def _scrape_part(self, ariq_slug: str, sgl_code: str) -> Parts:
