@@ -6,28 +6,30 @@ from Models.ImageModel import ImageModel
 
 
 df = pd.read_excel("OldNewSGL.xlsx", sheet_name="Sheet1")
-sgl_dict = pd.Series(df["New SGL Code"].values, index=df["Old SGL Code"]).to_dict()
+sgl_dictionary = pd.Series(
+    df["New SGL Code"].values, index=df["Old SGL Code"]
+).to_dict()
 del df
 
 with open("images.json", "r") as file_to_read:
-    all_images_data = json.load(file_to_read)
-images_dict = {}
+    prev_all_images_data = json.load(file_to_read)
+prev_images_dict = {}
 
-for data in all_images_data:
-    images_dict[data["file_name"]] = data["image_url"]
-del all_images_data
+for data in prev_all_images_data:
+    prev_images_dict[data["file_name"]] = data["image_url"]
+del prev_all_images_data
 # updateImage json file
 
-all_data_db = SQLiteHelper("SnapperDb.db")
-read_all_db = all_data_db.get_all()
-del all_data_db
+load_prev_db = SQLiteHelper("SnapperDb.db")
+prev_parts = load_prev_db.get_all()
+del load_prev_db
 
 new_data_base = SQLiteHelper("NewSnapperDb.db")
 images: list[ImageModel] = []
 records = []
-for data in read_all_db:
-    new_sgl_model = sgl_dict.get(data[0])
+for data in prev_parts:
     old_sgl_model = data[0]
+    new_sgl_model = sgl_dictionary.get(old_sgl_model)
     section = data[1]
     part_number = data[2]
     description = data[3]
@@ -44,7 +46,8 @@ for data in read_all_db:
     }
     images.append(
         ImageModel(
-            file_name=new_section_diagram, image_url=images_dict[old_section_diagram]
+            file_name=new_section_diagram,
+            image_url=prev_images_dict[old_section_diagram],
         )
     )
     records.append(record)
