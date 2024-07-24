@@ -4,4 +4,4 @@
 *.html
 *.db
 *.venv
-*.ipynb
+*.ipynb*
